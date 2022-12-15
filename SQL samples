@@ -334,10 +334,58 @@ having Sum(s.[SalesQuantity]
 
 
 
+/* Display   the “Actual”, “Budget” and “Forecast” amounts by Product Category from the [dbo].[FactStrategyPlan]   table.
+·           Use the data in the dbo.[DimScenario] table   to identify “Actual”, “Budget” and “Forecast” Amounts. 
+·           Use JOINs as appropriate.
+*/
 
 
+select * from 
+(
+select 
+pc.[ProductCategoryName], sc.[ScenarioName], sp.[Amount]
+from [dbo].[DimProductCategory] pc
+left join [dbo].[FactStrategyPlan]sp on  sp.[ProductCategoryKey] = pc.[ProductCategoryKey]
+left join  [dbo].[DimScenario] sc on sp.[ScenarioKey] = sc.[ScenarioKey] 
+--group by pc.[ProductCategoryName]
+)st
+pivot
+(
+sum(st.[Amount])
+for st.[ScenarioName] in ([Actual],[Budget],[Forecast])
+)sp
 
 
+/*Building on the query from previous question - Q26, derive an additional column to display a KPI, that shows how each Category performed in the Current Month when compared with the Previous Month. KPI Calculation detailed below. 
+Results may be displayed in the order of Categories that had highest % growth when comparing Current Month vs Previous Month. 
+[Category_CM_PM_Growth_Pctg]  = 
+( [Current_Month_Sales_Amount] –    
+  [Previous_Month_Sales_Amount] ) * 100  /  
+  [Current_Month_Sales_Amount]  
+·         Use [dbo].[FactSales_Small] table for sales information.
+·         Use the appropriate dbo.[DimProduct…] tables. 
+·         Assume that we are currently in April of 2009. */
+
+with temp  as(
+select
+st.[StoreName], st.[StoreKey]
+,Sum(case when d.[CalendarQuarter] = '20093' then sc.[SalesAmount] end) as [total sales in previous QTR]
+,Cast (Coalesce(Sum(case when d.[CalendarMonth] = '200904' then sc.[SalesAmount] end),0) as FLOAT) as 'Currentmonth'
+,Cast (Coalesce(Sum(case when d.[CalendarMonth] = '200903' then sc.[SalesAmount] end),0) as float) as 'previousmonth'
+from [dbo].[DimStore] st
+left join [dbo].[FactSales_Small] sc on sc.[StoreKey]= st.[StoreKey]
+left join [dbo].[DimDate] d on d.[DateKey] = sc.[DateKey]
+group by st.[StoreName],d.[CalendarQuarter] ,d.[CalendarMonth],st.[StoreKey]
+)
+select temp.StoreName
+,temp.[total sales in previous QTR]
+,temp.Currentmonth
+,temp.previousmonth
+--  ( CONVERT(numeric(5,2),S1.CallMade) / S2.CallsMade) * 100 As PercentageChange
+, Case  when temp.Currentmonth !=  0 then  (((temp.Currentmonth- temp.previousmonth)*100)/temp.Currentmonth)  
+       when temp.Currentmonth  = 0 then 'No sale in current month' end as 'percentage'
+from [dbo].[DimStore] st
+left join temp  on temp.storekey = st.storekey
 
 
 
