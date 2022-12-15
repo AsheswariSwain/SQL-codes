@@ -1,0 +1,363 @@
+/*Display the names of stores which recorded  zero / no sales in the year 2007. 
+·         Use [dbo].[FactOnlineSales_Small] table for sales information.
+·         Store information is available in dbo.[DimStore] table. 
+·         Use JOINs as appropriate.*/
+
+
+Select
+st.[StoreName], s.[SalesQuantity]
+from [dbo].[DimStore] st
+left join [dbo].[FactOnlineSales_Small] s on s.[StoreKey] =st.[StoreKey]
+left join [dbo].[DimDate]d on d.[DateKey] = s.[DateKey]
+where 
+d.[CalendarYear] = '2007'
+group by 
+st.[StoreName],s.[SalesQuantity]
+having Sum(s.[SalesQuantity]
+) = 0
+
+
+/*
+Execute the below script to make a copy of the [dbo].[DimEmployee] table in [Your_Schema].
+  
+ SELECT * INTO [Your_Schema].[DimEmployee_Exercise]
+FROM              dbo.[DimEmployee].
+
+Write a query to update the [MaritalStatus] in [Your_Schema].[DimEmployee_Exercise] table based on the logic below, ONLY for those employees who were Hired in the [FiscalMonth] “199801”.  Fiscal Month information is available in dbo.[DimDate] table. 
+·         If the present Marital Status is ‘M’, then update it to “Married”.
+·         If the present Marital Status is ‘S’, then update it to “Single”.
+  
+ Ø  Pay attention to the difference in date format in [HierDate] column, and the [DateKey] column (in dbo.[DimDate]) 
+*/
+
+Select
+hiredate,
+Case when [MaritalStatus] = 'M' then 'Married'
+	when [MaritalStatus] = 'S' then 'Single' 
+	end as 'Stattus'
+	from [Ex_Swain].[DimEmployee_Exercise] 
+-- left join [dbo].[DimDate] d on CONVERT(date,d.[Datekey]) = CONVERT(date,e.LoadDate) 
+where   Concat((Year(DATEADD(M, 0, hiredate ))),RIGHT('0' + RTRIM(MONTH(DATEADD(MM, 0, hiredate ))), 2)) = '199801'
+
+
+
+/*
+Delete the records for Inactive Employees from [Your_Schema].[DimEmployee_Exercise].
+*/
+
+delete from  
+[Ex_Swain].[DimEmployee_Exercise]
+where 
+[Status] = 'NULL'
+
+/*
+Insert records from [dbo.[DimEmployee] table into [Your_Schema].[DimEmployee_Exercise], ONLY those that are not already present in the [Your_Schema].[DimEmployee_Exercise] table.
+*/
+
+SET IDENTITY_INSERT [Ex_Swain].[DimEmployee_Exercise] ON
+INSERT INTO [Ex_Swain].[DimEmployee_Exercise] ([EmployeeKey]
+      ,[ParentEmployeeKey]
+      ,[FirstName]
+      ,[LastName]
+      ,[MiddleName]
+      ,[Title]
+      ,[HireDate]
+      ,[BirthDate]
+      ,[EmailAddress]
+      ,[Phone]
+      ,[MaritalStatus]
+      ,[EmergencyContactName]
+      ,[EmergencyContactPhone]
+      ,[SalariedFlag]
+      ,[Gender]
+      ,[PayFrequency]
+      ,[BaseRate]
+      ,[VacationHours]
+      ,[CurrentFlag]
+      ,[SalesPersonFlag]
+      ,[DepartmentName]
+      ,[StartDate]
+      ,[EndDate]
+      ,[Status]
+      ,[ETLLoadID]
+      ,[LoadDate]
+      ,[UpdateDate])
+SELECT [EmployeeKey]
+      ,[ParentEmployeeKey]
+      ,[FirstName]
+      ,[LastName]
+      ,[MiddleName]
+      ,[Title]
+      ,[HireDate]
+      ,[BirthDate]
+      ,[EmailAddress]
+      ,[Phone]
+      ,[MaritalStatus]
+      ,[EmergencyContactName]
+      ,[EmergencyContactPhone]
+      ,[SalariedFlag]
+      ,[Gender]
+      ,[PayFrequency]
+      ,[BaseRate]
+      ,[VacationHours]
+      ,[CurrentFlag]
+      ,[SalesPersonFlag]
+      ,[DepartmentName]
+      ,[StartDate]
+      ,[EndDate]
+      ,[Status]
+      ,[ETLLoadID]
+      ,[LoadDate]
+      ,[UpdateDate]
+FROM [dbo].[DimEmployee]
+WHERE NOT EXISTS (Select * From [Ex_Swain].[DimEmployee_Exercise] WHERE [Ex_Swain].[DimEmployee_Exercise].[EmployeeKey] = [dbo].[DimEmployee].[EmployeeKey])
+
+/*
+Display Total SalesAmount by Channel Name using the data in [dbo].[FactSales_Small] and [dbo].[DimChannel] tables.
+  
+·         Use JOINs as appropriate.
+*/
+Select
+c.[ChannelName]
+,SUM(s.[SalesAmount]) as 'Total sum'
+ from [dbo].[DimChannel] c
+left join  [dbo].[FactSales_Small] s on s.[channelKey] = c.[ChannelKey]
+group by c.[ChannelName]
+
+/*
+Display Total Profits by Product Category and Product Sub-category.
+ ·         Use appropriate [dbo].[DimProduct….] tables and [dbo].[FactSales_Small] table to achieve this result.
+·         Calculate Profit from [dbo].[FactSales_Small] as [SalesAmount] – [TotalCost]. 
+·         Use JOINs as appropriate.
+*/
+
+select
+pc.[ProductCategoryName]
+,psc.[ProductSubcategoryName]
+,Sum(s.[SalesAmount] - s.[TotalCost] ) as 'profit' 
+from [dbo].[DimProduct] p 
+left join  [dbo].[FactSales_Small] s on s.[ProductKey] =p.[ProductKey]
+left join [dbo].[DimProductSubcategory] psc on psc.[ProductSubcategoryKey] = p.[ProductSubcategoryKey]
+left join [dbo].[DimProductCategory] pc on pc.[ProductCategoryKey] = psc.[ProductCategoryKey]
+group by
+pc.[ProductCategoryName]
+,psc.[ProductSubcategoryName] 
+order by pc.[ProductCategoryName] asc
+
+/*Display the total of [DiscountAmount] information present in the [dbo].[FactSales_Small] table by [ChannelName], [StoreName], [ProductCategoryName] and [CurrencyName]. 
+·         Join with the appropriate [dbo].[Dim…] tables to retrieve the respective “Name” details. 
+·         Use JOINs as appropriate.*/
+
+Select 
+c.[ChannelName]
+,st.[StoreName]
+,pc.[ProductCategoryName]
+,cc.[CurrencyName]
+,Sum(s.[DiscountAmount]) as 'tot discount'
+from 
+ [dbo].[DimProduct] p 
+left join  [dbo].[FactSales_Small] s on s.[ProductKey] =p.[ProductKey]
+	left join [dbo].[DimProductSubcategory] psc on psc.[ProductSubcategoryKey] = p.[ProductSubcategoryKey]
+	left join [dbo].[DimProductCategory] pc on pc.[ProductCategoryKey] = psc.[ProductCategoryKey]
+	left join [dbo].[DimChannel]c on c.[ChannelKey]=s.[channelKey]
+left join [dbo].[DimStore]st on st.[StoreKey] = s.[StoreKey]
+left join [dbo].[DimCurrency] cc on cc.[CurrencyKey]= s.[CurrencyKey]
+group  by
+c.[ChannelName]
+,st.[StoreName]
+,pc.[ProductCategoryName]
+,cc.[CurrencyName]
+
+
+/*Display names of all cities that do NOT have any open stores.
+·         Store information is available in dbo.[DimStore] table. 
+·         Open stores can be identified either based on Status column = “On”, or based on missing values (NULLs) in CloseDate column. 
+·         The [GeographyType] column in [dbo].[DimGeography] table have the following values – (Continent/RegionCountry/StateProvince/City). This indicates the “level” of a Geography member.
+Use the values in [GeographyType] column to identify Cities.
+·         Use JOINs as appropriate.*/
+
+Select 
+g.[CityName]
+from [dbo].[DimGeography] g 
+left join [dbo].[DimStore] d on d.[GeographyKey] =g. [GeographyKey]
+where d.[Status] ='OFF' and [CloseDate] is not NULL
+
+
+/*Display for each City, the count of “Open” stores and count of “Closed” stores. 
+·         Store information is available in dbo.[DimStore] table. 
+·         Open stores can be identified either based on Status column = “On”, or based on missing values (NULLs) in CloseDate column. 
+·         The [GeographyType] column in [dbo].[DimGeography] table have the following values – (Continent/RegionCountry/StateProvince/City). This indicates the “level” of a Geography member.
+  
+Use the values in [GeographyType] column to identify Cities.
+·         Use JOINs as appropriate. */
+
+
+select [CityName], 'on'as 'open', 'off' as 'closed'
+from (
+Select * from 
+(
+Select 
+g.[CityName],s.[Status],s.[StoreKey]
+from [dbo].[DimStore] s
+left join [dbo].[DimGeography] g on g.[GeographyKey]=s.[GeographyKey]
+)st
+pivot
+(
+Count(st.[StoreKey])
+for st.[Status] in ([On],[Off])
+)pv
+) as tp
+
+
+/*Display the names of TOP 5 Product Categories based on the number of Products present in each category. 
+·         Use appropriate [dbo].[DimProduct….] tables to achieve this result.
+·         Use JOINs as appropriate.*/
+
+
+Select  top 5 pc.[ProductCategoryName]
+from [dbo].[DimProductCategory] pc
+left join [dbo].[DimProductSubcategory] psc on  psc.[ProductCategoryKey] = pc.[ProductCategoryKey]
+left join [dbo].[DimProduct] p on p.[ProductSubcategoryKey] = psc.[ProductSubcategoryKey]
+group by pc.[ProductCategoryName] 
+ORDER BY Count(p.[ProductKey]) DESC
+
+/*Display the number of Male & Female customers (of Type “Person”) present in each country. 
+·         Country and City data are available in [dbo].[DimGeography] table.  
+·         Customer data is available in [dbo].[DimCustomer] table. 
+·         Use JOINs as appropriate*/
+
+Select 
+g.[RegionCountryName],
+count(case when c.[Gender] ='M' then 1 end) as 'Male',
+count(case when c.[Gender] ='F' then 1 end) as 'Female'
+from [dbo].[DimCustomer] c
+left join [dbo].[DimGeography] g on g.[GeographyKey]= c.[GeographyKey]
+where c.Customertype = 'person'
+group by g.[RegionCountryName]
+
+/*Display the Total SalesAmount by Fiscal Quarters  using the information in [dbo].[DimDate] and [dbo].[FactSales_Small] tables. 
+·         Use JOINs as appropriate.*/
+
+Select 
+d.[FiscalQuarter],
+Sum([SalesAmount]) as'Total Sales Amount'
+from [dbo].[DimDate] d 
+left join [dbo].[FactSales_Small] s on d.[DateKey] = s.[DateKey]
+group by d.[FiscalQuarter]
+
+/*Display the Names of Customers (of Type “Person”)  who have sold more than 50 different products in the year 2007, based on [dbo].[FactOnlineSales_Small]. 
+·         Use appropriate JOIN statements to get the result. 
+·         Customer data is available in [dbo].[DimCustomer] table. 
+  Use JOINs as appropriate*/
+  
+  select 
+Concat(c.[FirstName],' ',c.[LastName]) as 'Customer name'
+From [dbo].[DimCustomer] c
+left join [dbo].[FactOnlineSales_Small] s on s.[CustomerKey] = c.[CustomerKey]
+left join [dbo].[DimDate] d on d.[Datekey] =s.[Datekey]
+left join [dbo].[DimProduct] p on p.[ProductKey] = s.[ProductKey]
+where d.[CalendarYear] = '2007' and c.Customertype = 'person'
+group by Concat(c.[FirstName],' ',c.[LastName])
+having count(p.[ProductKey])> 50
+
+
+/*Display the names of TOP 5 cities that had the highest SalesAmount in [dbo].[FactSales_Small] table for Fiscal Quarters  “20092” and “20094”. 
+·         City data are available in [dbo].[DimGeography] table.  
+·         FiscalQuarter information is available in dbo.[DimDate] table.
+·         Use JOINs as appropriate.*/
+
+select top 5 g.[CityName]
+from [dbo].[DimGeography] g
+left join [dbo].[DimStore] s on s.[GeographyKey] = g.[GeographyKey]
+left join [dbo].[FactSales_Small] f on f.[StoreKey] = s.[StoreKey]
+left join [dbo].[DimDate] d on d.[Datekey] = f.[Datekey]
+where d.[FiscalQuarter] in ('20092', '20094')
+group by g.[CityName]
+order by sum(f.[SalesAmount]) desc
+
+
+/*Display the TOP 5 Product Categories that have the most number of Products returned in the year 2009, based on the data present in [dbo].[FactSales_Small] table. 
+·         Use appropriate [dbo].[DimProduct…] tables. 
+·         Use the columns [Return…] from [dbo].[FactSales_Small] table to identify returns. 
+·         Use JOINs as appropriate.
+*/
+
+Select 
+top 5 pc.[ProductCategoryName]
+from [dbo].[DimProductCategory] pc
+left join [dbo].[DimProductSubcategory] psc on psc.[ProductCategoryKey] = pc.[ProductCategoryKey]
+left join [dbo].[DimProduct] p on p.[ProductSubcategoryKey] = psc.[ProductSubcategoryKey]
+left join [dbo].[FactSales_Small] s on s.[ProductKey] =p.[ProductKey]
+left join [dbo].[DimDate]d on d.[DateKey] = s.[DateKey]
+where 
+d.[CalendarYear] = '2009'
+group by 
+pc.[ProductCategoryName] 
+order by 
+Sum(s.[ReturnQuantity]) desc
+
+
+/*Display by Manufacturer, the total number of Products sold and revenues from their sale, during 2007.
+·         Use the data in [dbo].[FactOnlineSales_Small] and [dbo].[DimProduct] tables for this exercise.
+·         Use JOINs as appropriate.*/
+
+Select 
+p.[Manufacturer]
+, Sum(s.[SalesQuantity]) as 'total number of Products sold'
+,Sum(s.[TotalCost]) as'Revenue'
+from [dbo].[DimProduct] p
+left join [dbo].[FactOnlineSales_Small] s on s.[ProductKey] =p.[ProductKey]
+left join [dbo].[DimDate]d on d.[DateKey] = s.[DateKey]
+where 
+d.[CalendarYear] = '2007'
+group by 
+p.[Manufacturer]
+
+
+/*Display the names of stores which recorded  zero / no sales in the year 2007. 
+·         Use [dbo].[FactOnlineSales_Small] table for sales information.
+·         Store information is available in dbo.[DimStore] table. 
+·         Use JOINs as appropriate.*/
+
+Select
+st.[StoreName], s.[SalesQuantity]
+from [dbo].[DimStore] st
+left join [dbo].[FactOnlineSales_Small] s on s.[StoreKey] =st.[StoreKey]
+left join [dbo].[DimDate]d on d.[DateKey] = s.[DateKey]
+where 
+d.[CalendarYear] = '2007'
+group by 
+st.[StoreName],s.[SalesQuantity]
+having Sum(s.[SalesQuantity]
+) = 0
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
